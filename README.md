@@ -59,7 +59,6 @@ In our years working across industry giants (Qualcomm, Samsara, Nutanix) and sta
 |----------|-------------|---------|
 | **GitHub** | PR reviews, issue creation, assignee management | ✅ Active |
 | **Outlook Calendar** | Meeting scheduling, availability checking, invites | ✅ Active |
-| **Slack** | Channel messaging, notifications, team updates | ✅ Active |
 | **Notion** | Document creation, task management, sharing | 🚧 In Progress |
 | **Zoom** | Native meeting joining, audio streaming | ✅ Active |
 
@@ -71,25 +70,6 @@ In our years working across industry giants (Qualcomm, Samsara, Nutanix) and sta
 - Python 3.11+
 - WhisperLive server running on `localhost:9090`
 - Valid API keys for integrations
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/your-org/sidekick.git
-cd sidekick
-
-# Setup virtual environment
-python -m venv calhacks_env
-source calhacks_env/bin/activate  # On Windows: calhacks_env\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Setup environment variables
-cp .env.example .env
-# Edit .env with your API keys
-```
 
 ### Environment Setup
 
@@ -105,18 +85,6 @@ SLACK_BOT_TOKEN=your_slack_bot_token
 MODEL_NAME=claude-3-5-sonnet-20241022
 GITHUB_REPOSITORY=your-org/your-repo
 ```
-
-### Launch Sidekick
-
-```bash
-# Start the Streamlit interface
-streamlit run streamlit_interface.py
-
-# In another terminal, run the full integration
-python full_integration_test.py
-```
-
-🎉 **That's it!** Sidekick will join your next Zoom meeting and start working for you.
 
 ---
 
@@ -209,7 +177,6 @@ class AgentState(TypedDict):
 - **🔷 Zoom**: Native WebSocket meeting joining and audio streaming
 - **👨‍💻 GitHub**: Complete repository and workflow management
 - **📅 Outlook Calendar**: Advanced scheduling and meeting coordination
-- **💬 Slack**: Team communication and notification workflows
 
 ### 🚧 **Tier 2: Extended** (In Development)
 - **📝 Notion**: Knowledge management and documentation
