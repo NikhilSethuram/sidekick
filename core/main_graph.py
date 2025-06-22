@@ -13,6 +13,7 @@ from agents.supervisor.agent import workflow as command_extractor_workflow
 from agents.workers.outlook_calendar.agent import outlook_agent, outlook_tools
 from core.state import AgentState
 from agents.workers.github.agent import github_agent, github_tools
+from agents.workers.linear.agent import linear_agent, linear_tools
 # Skip Jira for now
 # from agents.workers.jira.agent import jira_agent, jira_tools
 
@@ -27,6 +28,7 @@ available_agents_descriptions = """
 - github_agent: An agent that can interact with GitHub. Use it to manage pull requests, assign reviewers, and create issues.
 - slack_agent: An agent that can send messages to Slack channels.
 - notion_agent: An agent for interacting with Notion.
+- linear_agent: An agent that can manage Linear tasks and issues. Use it to create, update, and track project tasks.
 """
 
 routing_supervisor_prompt_template = f"""
@@ -85,12 +87,19 @@ def github_agent_node(state: AgentState):
     result = github_agent.invoke(state)
     return result
 
+def linear_agent_node(state: AgentState):
+    """Invokes the Linear agent and returns its result."""
+    print("---LINEAR AGENT---")
+    result = linear_agent.invoke(state)
+    return result
+
 # --- Agent Execution Graph Definition ---
 graph_builder = StateGraph(AgentState)
 
 graph_builder.add_node("supervisor", supervisor_node)
 graph_builder.add_node("outlook_agent", outlook_agent_node)
 graph_builder.add_node("github_agent", github_agent_node)
+graph_builder.add_node("linear_agent", linear_agent_node)
 # Skip Jira for now
 # graph_builder.add_node("jira_agent", jira_agent_node)
 # Placeholder nodes for other agents. They need to be implemented.
@@ -98,7 +107,7 @@ graph_builder.add_node("github_agent", github_agent_node)
 # graph_builder.add_node("notion_agent", notion_agent_node)
 
 
-tool_node = ToolNode(outlook_tools + github_tools) # Removed jira_tools
+tool_node = ToolNode(outlook_tools + github_tools + linear_tools) # Added linear_tools
 graph_builder.add_node("tools", tool_node)
 
 graph_builder.add_edge(START, "supervisor")
@@ -109,7 +118,7 @@ def supervisor_router(state: AgentState):
     last_message = state["messages"][-1]
     next_agent = last_message.content
     print(f"Next step is: {next_agent}")
-    if next_agent == "FINISH" or next_agent not in ["outlook_agent", "github_agent"]: # Removed jira_agent
+    if next_agent == "FINISH" or next_agent not in ["outlook_agent", "github_agent", "linear_agent"]: # Added linear_agent
         return END
     return next_agent
 
@@ -128,6 +137,7 @@ def after_agent_router(state: AgentState):
 
 graph_builder.add_conditional_edges("outlook_agent", after_agent_router)
 graph_builder.add_conditional_edges("github_agent", after_agent_router)
+graph_builder.add_conditional_edges("linear_agent", after_agent_router)  # Add edge for linear agent
 # Skip Jira for now
 # graph_builder.add_conditional_edges("jira_agent", after_agent_router)
 # Add edges for other agents
@@ -155,11 +165,11 @@ if __name__ == "__main__":
 
     # 2. Define a sample meeting transcript (in a real scenario, this would be fetched live)
     sample_transcript = [
-        "Cool, let's wrap up.",
-        "Yash, can you add Nikhil as a reviewer on the user auth PR?",
-        "Also, book a 30-minute meeting for tomorrow morning to sync on the deployment plan.",
-        "Oh, and create a GitHub issue for the login timeout bug we discussed - assign it to Nikhil.",
-        "Can you send an email to the team about the security updates? Include Yash and Nikhil.",
+        "Hey everyone, how's your day going? We got a lot of work to do so lets get to it.",
+        "Nikhil do you think you can review my slack integration PR?",
+        "I also want to sync tomorrow morning for some time to talk over the deployment plan.",
+        "Oh, and create a GitHub issue for the latency bug we discussed - assign it to Nikhil.",
+        "We also need to send out the security updates email to the team - include Yash and Nikhil.",
         "I think that's all for now. Great work everyone.",
     ]
 
@@ -230,4 +240,3 @@ if __name__ == "__main__":
 
     print(f"\nSaved {len(proposed_actions)} proposed actions to {output_file}")
     print("\n🔒 No actions were executed. Use the Streamlit interface to approve and execute actions.")
-

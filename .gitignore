@@ -3,6 +3,25 @@ venv/
 env/
 .venv/
 whisperlive_env/bin/
+whisperlive_env/etc/
+whisperlive_env/lib/
+whisperlive_env/share/
+whisperlive_env/var/
+whisperlive_env/include/
+whisperlive_env/lib64/
+whisperlive_env/local/
+calhacks_env/bin/
+calhacks_env/etc/
+calhacks_env/lib/
+calhacks_env/share/
+calhacks_env/var/
+calhacks_env/include/
+calhacks_env/lib64/
+calhacks_env/local/
+calhacks_env/bin/
+calhacks_env/etc/
+calhacks_env/jupyter_cache/
+
 
 # Python
 __pycache__/

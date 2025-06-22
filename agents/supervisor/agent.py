@@ -19,6 +19,8 @@ You are an expert at processing meeting transcripts. Your task is to analyze the
 5.  Return your findings as a JSON array of strings, where each string is a self-contained command.
 6.  If no actionable commands are found, return an empty JSON array `[]`.
 
+MAKE SURE TO ONLY RETURN THE JSON ARRAY OF STRINGS REPRESENTING THE COMMANDS AND NOTHING ELSE.
+
 **Example:**
 
 **Transcript:**
@@ -69,5 +71,3 @@ def workflow(state: dict):
     # We will return these messages to be processed one by one.
     # For now, let's just add them to the state. The graph needs to be updated to handle this.
     return {"messages": new_messages}
-
-
