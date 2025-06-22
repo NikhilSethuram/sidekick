@@ -91,7 +91,8 @@ class AgentRunnable(Runnable):
             tool_calls.append({
                 "name": action.tool,
                 "args": action.tool_input,
-                "id": action.tool
+                "id": action.tool_call_id,
+                "type": "tool_call"
             })
             
         message = AIMessage(content="", tool_calls=tool_calls, name=self.name)

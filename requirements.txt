@@ -1,0 +1,10 @@
+PyGithub
+thefuzz
+python-Levenshtein
+python-dotenv
+langchain
+langgraph
+langchain-anthropic
+langgraph-supervisor
+pydantic
+aiohttp 

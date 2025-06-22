@@ -27,28 +27,16 @@ llm = ChatAnthropic(model=os.environ.get("MODEL_NAME"))
 def supervisor_node(state: AgentState):
     """Invokes the supervisor to decide the next step."""
     print("---SUPERVISOR---")
-    
-    # This list should be kept in sync with the agents passed to the supervisor
-    worker_agents = ["outlook_agent", "github_agent"]
-    
-    # If there is only one worker agent and this is the first time the supervisor
-    # is called, we can bypass the LLM call and route directly to the worker.
-    if len(worker_agents) == 1 and len(state["messages"]) == 1:
-        agent_name = worker_agents[0]
-        print(f"Single worker detected. Bypassing supervisor LLM call and routing directly to: {agent_name}")
-        return {"next": agent_name}
-
     # The supervisor returns a dict with a "messages" key.
-    result = supervisor_workflow.invoke(state)
+    result = supervisor_workflow(state)
     print(f"Supervisor result: {result}")
     # The last message in the list is the supervisor's decision.
     last_message = result["messages"][-1]
     
     # The content of the last message is the name of the next agent to call.
     # It can also be "FINISH" to end the graph.
-    next_agent = last_message.content
-    
-    return {"next": next_agent}
+    # We will just return the message, and the router will read the content.
+    return {"messages": [last_message]}
 
 
 # This is a placeholder for a real worker agent
@@ -100,10 +88,14 @@ graph_builder.add_edge(START, "supervisor")
 # The supervisor routes to a worker or ends the conversation
 def supervisor_router(state: AgentState):
     print(f"---ROUTING---")
-    print(f"Next step is: {state['next']}")
-    if state["next"] == "FINISH":
+    # The supervisor's message is the last one in the list.
+    last_message = state["messages"][-1]
+    # The content of the message is the next agent to route to.
+    next_agent = last_message.content
+    print(f"Next step is: {next_agent}")
+    if next_agent == "FINISH":
         return END
-    return state["next"]
+    return next_agent
 
 graph_builder.add_conditional_edges("supervisor", supervisor_router)
 
@@ -137,13 +129,13 @@ graph = graph_builder.compile()
 
 
 # # This is how you would run the graph
-# if __name__ == "__main__":
-#     initial_state = {
-#         "messages": [HumanMessage(content="Hey, can you add NikhilSethuram as a reviewer on the user auth PR?")],
-#     }
-#     # The stream() method allows us to see the state at each step
-#     for step in graph.stream(initial_state, {"recursion_limit": 10}):
-#         print(f"Step: {list(step.keys())[0]}")
-#         print(step)
-#         print("---")
+if __name__ == "__main__":
+    initial_state = {
+        "messages": [HumanMessage(content="Hey, can you add NikhilSethuram as a reviewer on the public API PR? Also send an email to yash about how hes so cool.")],
+    }
+    # The stream() method allows us to see the state at each step
+    for step in graph.stream(initial_state, {"recursion_limit": 10}):
+        print(f"Step: {list(step.keys())[0]}")
+        print(step)
+        print("---")
 
