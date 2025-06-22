@@ -364,37 +364,16 @@ We welcome contributions! Here's how to get involved:
 <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn"/>
 </a>
 <br/>
-<span style="opacity: 0.6;">🐦 Coming Soon</span>
 </td>
 </tr>
 </table>
-
-
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
 ## 🎉 Acknowledgments
 
-- **🏆 CalHacks 2025** - Where it all began
-- **🤖 Anthropic** - For Claude's incredible language understanding
-- **⚡ Groq** - For blazing-fast Whisper inference
-- **🕸️ LangChain** - For the amazing agent framework
-- **🎤 WhisperLive** - For real-time transcription infrastructure
-
----
-
-<div align="center">
-
-**Built with ❤️ by the Sidekick Team**
-
-*Transforming meetings, one conversation at a time*
-
-[⭐ Star us on GitHub](https://github.com/your-org/sidekick) • [🚀 Try the Demo](https://sidekick-demo.com) • [📧 Contact Us](mailto:hello@sidekick.ai)
-
-</div> 
+- **🏆 [CalHacks 2025](https://calhacks.io/)** – Where it all began  
+- **🤖 [Anthropic](https://www.anthropic.com/)** – For Claude's incredible language understanding  
+- **⚡ [Groq](https://groq.com/)** – For blazing-fast Whisper inference  
+- **🕸️ [LangChain](https://www.langchain.com/)** – For the amazing agent framework  
+- **🎤 [WhisperLive](https://github.com/davabase/whisper-live)** – For real-time transcription infrastructure  
