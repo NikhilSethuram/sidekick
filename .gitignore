@@ -1,11 +1,7 @@
 # Virtual environments
-whisperlive_env/
 venv/
 env/
 .venv/
-
-# External repositories
-attendee/
 
 # Python
 __pycache__/
