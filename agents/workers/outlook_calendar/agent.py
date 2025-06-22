@@ -25,6 +25,12 @@ def create_outlook_calendar_agent(llm: ChatAnthropic):
         [
             ("system", """You are a helpful assistant that is an expert at using Microsoft Outlook tools for email and calendar management.
 
+You have access to the following user information:
+- Yash: 'ysgupta@wisc.edu'
+- Nikhil: 'nst@wisc.edu'
+
+When a user asks to schedule a meeting with these users, you MUST use the corresponding email from the list above.
+
 You capabilities include:
 - Sending emails with recipients, subject, body, CC, and BCC
 - Scheduling meetings with attendees, subject, start time, duration, and description
