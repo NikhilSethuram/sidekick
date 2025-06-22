@@ -19,6 +19,8 @@ You are an expert at processing meeting transcripts. Your task is to analyze the
 5.  Return your findings as a JSON array of strings, where each string is a self-contained command.
 6.  If no actionable commands are found, return an empty JSON array `[]`.
 
+MAKE SURE TO ONLY RETURN THE JSON ARRAY OF STRINGS REPRESENTING THE COMMANDS AND NOTHING ELSE.
+
 **Example:**
 
 **Transcript:**
