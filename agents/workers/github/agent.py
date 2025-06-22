@@ -30,7 +30,11 @@ def create_github_agent(llm: ChatAnthropic):
     # 2. Create the prompt
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", "You are a helpful assistant that is an expert at using GitHub tools. Your primary role is to determine which tool to use based on the user's request and provide the necessary arguments."),
+            ("system", """You are a helpful assistant that is an expert at using GitHub tools. Your primary role is to determine which tool to use based on the user's request and provide the necessary arguments.
+
+You have access to the following user information:
+- Yash: 'ysgupta@wisc.edu'
+- Nikhil: 'nst@wisc.edu'"""),
             ("placeholder", "{chat_history}"),
             ("human", "{input}"),
             ("placeholder", "{agent_scratchpad}"),
