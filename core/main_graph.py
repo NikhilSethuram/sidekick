@@ -1,21 +1,14 @@
 import os
+import json
 from typing import List
 
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
 from langgraph.graph import END, StateGraph, START
 from langgraph.prebuilt import ToolNode
 
-# We will implement these later, for now, they are placeholders
-# from agents.supervisor.agent import Supervisor
-# from agents.workers.google_calendar.agent import (
-#     create_google_calendar_agent,
-#     google_calendar_tools,
-# )
-
-# Import the supervisor workflow
-from agents.supervisor.agent import workflow as supervisor_workflow
-# Import the Outlook calendar agent and tools directly
+# The supervisor has been repurposed to be a command extractor.
+from agents.supervisor.agent import workflow as command_extractor_workflow
 from agents.workers.outlook_calendar.agent import outlook_agent, outlook_tools
 from core.state import AgentState
 from agents.workers.github.agent import github_agent, github_tools
@@ -23,85 +16,104 @@ from agents.workers.github.agent import github_agent, github_tools
 # Initialize the LLM
 llm = ChatAnthropic(model=os.environ.get("MODEL_NAME"))
 
-# The supervisor node now simply invokes our compiled supervisor workflow
+
+# --- Routing Supervisor Logic ---
+# This supervisor is for routing a single command to the correct worker agent.
+available_agents_descriptions = """
+- outlook_agent: An agent that can manage your Outlook calendar. Use it to schedule meetings, find free time, and send invites.
+- github_agent: An agent that can interact with GitHub. Use it to manage pull requests, assign reviewers, and create issues.
+- slack_agent: An agent that can send messages to Slack channels.
+- jira_agent: An agent for managing Jira tickets. Use it to create tickets.
+- notion_agent: An agent for interacting with Notion.
+"""
+
+routing_supervisor_prompt_template = f"""
+You are a supervisor agent responsible for managing a team of specialized worker agents.
+Your primary role is to analyze an incoming user request and route it to the most appropriate agent.
+Respond ONLY with the name of the selected agent (e.g., `github_agent`) or 'FINISH' if the task is complete or no agent is suitable.
+
+Available Agents:
+{available_agents_descriptions}
+
+Conversation History:
+{{chat_history}}
+
+User Request:
+{{input}}
+
+Your Response:
+"""
+
+def command_extractor_node(state: AgentState):
+    """Invokes the command extractor to find tasks in the transcript."""
+    print("---COMMAND EXTRACTOR---")
+    # This workflow now lives in agents/supervisor/agent.py
+    result = command_extractor_workflow(state)
+    return {"messages": result["messages"]}
+
 def supervisor_node(state: AgentState):
-    """Invokes the supervisor to decide the next step."""
-    print("---SUPERVISOR---")
-    # The supervisor returns a dict with a "messages" key.
-    result = supervisor_workflow(state)
-    print(f"Supervisor result: {result}")
-    # The last message in the list is the supervisor's decision.
-    last_message = result["messages"][-1]
+    """Invokes the supervisor to decide the next step for a single command."""
+    print("---SUPERVISOR (ROUTING)---")
     
-    # The content of the last message is the name of the next agent to call.
-    # It can also be "FINISH" to end the graph.
-    # We will just return the message, and the router will read the content.
-    return {"messages": [last_message]}
+    chat_history_str = "\n".join([f"  - {msg.type}: {msg.content}" for msg in state["messages"]])
+    
+    last_human_message = ""
+    for msg in reversed(state["messages"]):
+        if isinstance(msg, HumanMessage):
+            last_human_message = msg.content
+            break
+
+    prompt = routing_supervisor_prompt_template.format(chat_history=chat_history_str, input=last_human_message)
+    
+    response = llm.invoke(prompt)
+    agent_name = response.content.strip()
+
+    return {"messages": [AIMessage(content=agent_name, name="supervisor")]}
 
 
-# This is a placeholder for a real worker agent
-def agent_node(state: AgentState):
-    print(f"---AGENT: {state['next']}---")
-    # This will be replaced by the actual agent's logic.
-    # A real agent would return an AIMessage with tool_calls or final content.
-    # This placeholder simulates a final response from the agent.
-    print(state)
-    message = AIMessage(
-        content=f"This is a placeholder response from the {state['next']} agent.",
-        name=state["next"],
-    )
-    return {"messages": [message]}
-
-# Function to create the final agent node for Outlook calendar
 def outlook_agent_node(state: AgentState):
     """Invokes the outlook agent and returns its result."""
     print("---OUTLOOK AGENT---")
     result = outlook_agent.invoke(state)
-    # The agent's response is already in the correct format.
     return result
 
-# Function to create the final agent node for GitHub
 def github_agent_node(state: AgentState):
     """Invokes the GitHub agent and returns its result."""
     print("---GITHUB AGENT---")
     result = github_agent.invoke(state)
-    # The agent's response is already in the correct format.
     return result
 
-# The final graph is created here
+# --- Agent Execution Graph Definition ---
 graph_builder = StateGraph(AgentState)
 
-# 1. Define the nodes
 graph_builder.add_node("supervisor", supervisor_node)
 graph_builder.add_node("outlook_agent", outlook_agent_node)
 graph_builder.add_node("github_agent", github_agent_node)
+# Placeholder nodes for other agents. They need to be implemented.
+# graph_builder.add_node("jira_agent", jira_agent_node)
+# graph_builder.add_node("slack_agent", slack_agent_node)
+# graph_builder.add_node("notion_agent", notion_agent_node)
 
-# The ToolNode is a pre-built node that executes tools.
-# Initialize it with all available tools.
-tool_node = ToolNode(outlook_tools + github_tools)
+
+tool_node = ToolNode(outlook_tools + github_tools) # Add other tools here
 graph_builder.add_node("tools", tool_node)
 
-
-# 2. Define the edges
 graph_builder.add_edge(START, "supervisor")
 
-# The supervisor routes to a worker or ends the conversation
 def supervisor_router(state: AgentState):
+    """Routes from the supervisor to the correct agent or ends."""
     print(f"---ROUTING---")
-    # The supervisor's message is the last one in the list.
     last_message = state["messages"][-1]
-    # The content of the message is the next agent to route to.
     next_agent = last_message.content
     print(f"Next step is: {next_agent}")
-    if next_agent == "FINISH":
+    if next_agent == "FINISH" or next_agent not in ["outlook_agent", "github_agent"]: # Add other agents here
         return END
     return next_agent
 
 graph_builder.add_conditional_edges("supervisor", supervisor_router)
 
-# This router checks if the worker's response contains tool calls.
-# If so, it routes to the 'tools' node. Otherwise, it routes back to the supervisor.
 def after_agent_router(state: AgentState):
+    """Checks for tool calls and routes to tools or back to supervisor."""
     print("---AGENT ROUTER---")
     last_message = state["messages"][-1]
     if hasattr(last_message, "tool_calls") and last_message.tool_calls:
@@ -109,33 +121,68 @@ def after_agent_router(state: AgentState):
         return "tools"
     else:
         print("Routing back to supervisor")
-        # We are returning to the supervisor, so we need to clear the 'next' field
-        # so the supervisor knows to pick a new agent.
         return "supervisor"
 
-# Edges from the workers go to our new router
 graph_builder.add_conditional_edges("outlook_agent", after_agent_router)
 graph_builder.add_conditional_edges("github_agent", after_agent_router)
+# Add edges for other agents
+# graph_builder.add_conditional_edges("jira_agent", after_agent_router)
+# graph_builder.add_conditional_edges("slack_agent", after_agent_router)
+# graph_builder.add_conditional_edges("notion_agent", after_agent_router)
 
-# The tool node always routes back to the supervisor
 graph_builder.add_edge("tools", "supervisor")
 
-# 3. Compile the graph
-graph = graph_builder.compile()
+agent_execution_graph = graph_builder.compile()
 
-# You can visualize the graph with this line (requires a few extra installs)
-# from IPython.display import Image, display
-# display(Image(graph.get_graph().draw_png()))
-
-
-# # This is how you would run the graph
+# --- MAIN EXECUTION LOGIC ---
 if __name__ == "__main__":
-    initial_state = {
-        "messages": [HumanMessage(content="Hey, can you add NikhilSethuram as a reviewer on the public API PR? Also send an email to yash about how hes so cool.")],
-    }
-    # The stream() method allows us to see the state at each step
-    for step in graph.stream(initial_state, {"recursion_limit": 10}):
-        print(f"Step: {list(step.keys())[0]}")
-        print(step)
-        print("---")
+    sample_transcript = [
+        "Cool, let's wrap up.",
+        "Nikhil, can you add Yash as a reviewer on the API gateway PR?",
+        "Also, book a 30-minute meeting for tomorrow morning to sync on the deployment plan.",
+        "I think that's all for now. Great work everyone.",
+        "Oh, wait, one more thing. Create a ticket for the button alignment bug we saw.",
+        "Let's assign it to me for now.",
+        "And send a message to the general channel about the new feature freeze."
+    ]
+
+    initial_state = {"transcript": sample_transcript, "messages": []}
+
+    extracted_commands = command_extractor_node(initial_state)["messages"]
+    
+    print("\n--- Extracted Commands ---")
+    if not extracted_commands:
+        print("No commands were extracted.")
+    else:
+        for cmd in extracted_commands:
+            print(f"- {cmd.content}")
+    print("--------------------------\n")
+
+    final_tool_calls = []
+
+    for i, command in enumerate(extracted_commands):
+        print(f"\n--- EXECUTING COMMAND {i+1}: '{command.content}' ---")
+        
+        command_state = {"messages": [command]}
+        
+        for step in agent_execution_graph.stream(command_state, {"recursion_limit": 10}):
+            step_name = list(step.keys())[0]
+            step_state = step[step_name]
+            
+            print(f"  Step: {step_name}")
+            
+            # Check for tool calls in the messages
+            if "messages" in step_state and step_state["messages"]:
+                last_message = step_state["messages"][-1]
+                if isinstance(last_message, AIMessage) and last_message.tool_calls:
+                    print(f"    - Found tool calls: {[tc['name'] for tc in last_message.tool_calls]}")
+                    final_tool_calls.extend(last_message.tool_calls)
+
+    print("\n--- All Proposed Actions ---")
+    print(json.dumps(final_tool_calls, indent=2))
+
+    with open("output.json", "w") as f:
+        json.dump(final_tool_calls, f, indent=2)
+
+    print("\nSaved all proposed actions to output.json")
 

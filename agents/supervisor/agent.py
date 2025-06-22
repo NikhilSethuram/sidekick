@@ -1,78 +1,73 @@
 import os
+import json
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import AIMessage, HumanMessage
-from langchain_core.prompts import PromptTemplate
+from langchain_core.messages import HumanMessage
 
 load_dotenv()
 
 model = ChatAnthropic(model=os.environ.get("MODEL_NAME"), api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
-# The descriptions are what the supervisor will see.
-# The `name` must match the node name in the main graph.
-available_agents_descriptions = """
-- outlook_agent: An agent that can manage your Outlook calendar. Use it to schedule meetings, find free time, and send invites.
-- github_agent: An agent that can interact with GitHub. Use it to manage pull requests, assign reviewers, and create issues.
-"""
-
-prompt_template = f"""
-You are a supervisor agent responsible for managing a team of specialized worker agents.
-Your primary role is to analyze incoming user requests and the conversation history to route them to the most appropriate agent.
-You can also route to 'FINISH' if you think the user's request has been fully addressed.
+prompt_template = """
+You are an expert at processing meeting transcripts. Your task is to analyze the following transcript and identify any specific, actionable commands or tasks that were mentioned.
 
 **Instructions:**
-1.  Thoroughly analyze the user's request and the full conversation history to understand what has already been done.
-2.  Review the list of available agents below.
-3.  Based on the history, choose the single best agent to handle the *next step* of the request.
-4.  If no agent is suitable or the task is complete, respond with 'FINISH'.
-5.  Respond ONLY with the name of the selected agent (e.g., `github_agent`) or 'FINISH'. Do not add any other text.
+1.  Read the entire transcript carefully.
+2.  Identify all explicit requests or action items. These could be things like assigning a task, scheduling a meeting, creating a document, or sending a message.
+3.  For each identified action, formulate a clear and concise command that a worker agent can execute.
+4.  If the same command is repeated, only include it once.
+5.  Return your findings as a JSON array of strings, where each string is a self-contained command.
+6.  If no actionable commands are found, return an empty JSON array `[]`.
 
-**Available Agents:**
-{available_agents_descriptions}
+**Example:**
 
-**Conversation History:**
-{{chat_history}}
+**Transcript:**
+"Okay team, great standup. For the new login flow, can you add Sara as a reviewer on the auth PR? Also, let's schedule a follow-up for tomorrow at 3 PM to review the designs. And please, someone send a reminder to the #eng channel about the code freeze."
 
-**User Request:**
-{{input}}
+**Your Response:**
+[
+    "add Sara as a reviewer on the auth PR",
+    "schedule a meeting for tomorrow at 3 PM to review the designs",
+    "send a reminder to the #eng channel about the code freeze"
+]
+
+**Transcript to Analyze:**
+{transcript}
 
 **Your Response:**
 """
 
-prompt = PromptTemplate.from_template(prompt_template)
-llm_chain = prompt | model
-
-
 def workflow(state: dict):
     """
-    This function is the supervisor's main logic. It decides which agent to call next.
+    This function processes the meeting transcript to extract actionable commands.
     """
-    messages = state["messages"]
+    print("---EXTRACTING COMMANDS FROM TRANSCRIPT---")
+    transcript_text = "\n".join(state["transcript"])
 
-    # The input to the supervisor is the initial user request.
-    # We find the first human message in the history.
-    input_text = ""
-    for msg in messages:
-        if isinstance(msg, HumanMessage):
-            input_text = msg.content
-            break
+    # If the transcript is empty, there's nothing to do.
+    if not transcript_text.strip():
+        return {"messages": []}
+
+    prompt = prompt_template.format(transcript=transcript_text)
     
-    # The chat history for the prompt is a formatted string of all messages.
-    # This gives the supervisor full context of what has been tried and what the results were.
-    chat_history_str = "\n".join([f"  - {msg.type}: {msg.content}" for msg in messages])
+    response = model.invoke(prompt)
+    
+    try:
+        # The model should return a JSON array of strings.
+        commands = json.loads(response.content)
+    except json.JSONDecodeError:
+        print("Error: Could not decode JSON from model response.")
+        print(f"Response content: {response.content}")
+        return {"messages": []}
 
-    # Invoke the LLM chain with the formatted history and initial input.
-    response = llm_chain.invoke(
-        {
-            "chat_history": chat_history_str,
-            "input": input_text,
-        }
-    )
-
-    # The result from the LLM is the name of the next agent or "FINISH".
-    agent_name = response.content.strip()
-
-    # We return this decision as an AIMessage, which the graph will use for routing.
-    return {"messages": [AIMessage(content=agent_name, name="supervisor")]}
+    # We convert each command into a HumanMessage.
+    # The main graph will then process each of these messages.
+    new_messages = [HumanMessage(content=cmd) for cmd in commands]
+    
+    print(f"Extracted {len(new_messages)} commands.")
+    
+    # We will return these messages to be processed one by one.
+    # For now, let's just add them to the state. The graph needs to be updated to handle this.
+    return {"messages": new_messages}
 
 
