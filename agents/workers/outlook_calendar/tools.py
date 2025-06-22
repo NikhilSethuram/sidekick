@@ -10,6 +10,28 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 from outlook_integration import OutlookIntegration
 
+# Hardcoded email mapping for demo purposes
+EMAIL_MAP = {
+    "yash": "ysgupta@wisc.edu",
+    "nikhil": "nst@wisc.edu",
+}
+
+def _resolve_email_addresses(name_or_emails: Optional[List[str]]) -> Optional[List[str]]:
+    """Resolves names to email addresses using the hardcoded map."""
+    if not name_or_emails:
+        return None
+    
+    resolved_emails = []
+    for item in name_or_emails:
+        # Check if the item is a name in our map (case-insensitive)
+        resolved_email = EMAIL_MAP.get(item.lower())
+        if resolved_email:
+            resolved_emails.append(resolved_email)
+        else:
+            # Assume it's already a valid email address
+            resolved_emails.append(item)
+    return resolved_emails
+
 # Schema for sending emails
 class SendEmailSchema(BaseModel):
     to: List[str] = Field(description="List of email addresses to send the email to.")
@@ -30,16 +52,21 @@ class ScheduleMeetingSchema(BaseModel):
 def send_email(to: List[str], subject: str, body: str, cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None) -> str:
     """Sends an email using Microsoft Outlook."""
     
+    # Resolve names to emails for all recipient fields
+    resolved_to = _resolve_email_addresses(to)
+    resolved_cc = _resolve_email_addresses(cc)
+    resolved_bcc = _resolve_email_addresses(bcc)
+
     async def _send_email():
         oi = OutlookIntegration()
         try:
             await oi.initialize()
             result = await oi.send_email(
-                to=to,
+                to=resolved_to,
                 subject=subject,
                 body=body,
-                cc=cc,
-                bcc=bcc
+                cc=resolved_cc,
+                bcc=resolved_bcc
             )
             await oi.shutdown()
             return result
@@ -50,7 +77,7 @@ def send_email(to: List[str], subject: str, body: str, cc: Optional[List[str]] =
     try:
         result = asyncio.run(_send_email())
         if result.get("success"):
-            return f"✅ Email sent successfully to {', '.join(to)}"
+            return f"✅ Email sent successfully to {', '.join(resolved_to)}"
         else:
             return f"❌ Failed to send email: {result.get('error', 'Unknown error')}"
     except Exception as e:
@@ -60,6 +87,9 @@ def send_email(to: List[str], subject: str, body: str, cc: Optional[List[str]] =
 def schedule_meeting(subject: str, start_time: str, duration_minutes: int = 60, attendees: Optional[List[str]] = None, description: str = "") -> str:
     """Schedules a meeting using Microsoft Outlook calendar. Note: Attendees will be included in the meeting title since the server doesn't support actual attendee invitations."""
     
+    # Resolve attendee names to emails
+    resolved_attendees = _resolve_email_addresses(attendees)
+
     # Parse start_time - handle relative times like "in 2 hours"
     if start_time.startswith("in "):
         # Handle relative time like "in 2 hours"
@@ -96,7 +126,7 @@ def schedule_meeting(subject: str, start_time: str, duration_minutes: int = 60, 
                 subject=subject,
                 start_time=parsed_start_time,
                 duration_minutes=duration_minutes,
-                attendees=attendees,
+                attendees=resolved_attendees,
                 description=description
             )
             await oi.shutdown()
@@ -108,7 +138,7 @@ def schedule_meeting(subject: str, start_time: str, duration_minutes: int = 60, 
     try:
         result = asyncio.run(_schedule_meeting())
         if result.get("success"):
-            attendee_info = f" (attendees in title: {', '.join(attendees)})" if attendees else ""
+            attendee_info = f" (attendees in title: {', '.join(resolved_attendees)})" if resolved_attendees else ""
             return f"✅ Meeting '{subject}' scheduled for {parsed_start_time.strftime('%Y-%m-%d %H:%M UTC')}{attendee_info}"
         else:
             return f"❌ Failed to schedule meeting: {result.get('error', 'Unknown error')}"
