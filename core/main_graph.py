@@ -18,6 +18,7 @@ from agents.supervisor.agent import workflow as supervisor_workflow
 # Import the Outlook calendar agent and tools directly
 from agents.workers.outlook_calendar.agent import outlook_agent, outlook_tools
 from core.state import AgentState
+from agents.workers.github.agent import github_agent, github_tools
 
 # Initialize the LLM
 llm = ChatAnthropic(model=os.environ.get("MODEL_NAME"))
@@ -28,7 +29,7 @@ def supervisor_node(state: AgentState):
     print("---SUPERVISOR---")
     
     # This list should be kept in sync with the agents passed to the supervisor
-    worker_agents = ["outlook_agent"]
+    worker_agents = ["outlook_agent", "github_agent"]
     
     # If there is only one worker agent and this is the first time the supervisor
     # is called, we can bypass the LLM call and route directly to the worker.
@@ -71,6 +72,13 @@ def outlook_agent_node(state: AgentState):
     # The agent's response is already in the correct format.
     return result
 
+# Function to create the final agent node for GitHub
+def github_agent_node(state: AgentState):
+    """Invokes the GitHub agent and returns its result."""
+    print("---GITHUB AGENT---")
+    result = github_agent.invoke(state)
+    # The agent's response is already in the correct format.
+    return result
 
 # The final graph is created here
 graph_builder = StateGraph(AgentState)
@@ -78,10 +86,11 @@ graph_builder = StateGraph(AgentState)
 # 1. Define the nodes
 graph_builder.add_node("supervisor", supervisor_node)
 graph_builder.add_node("outlook_agent", outlook_agent_node)
+graph_builder.add_node("github_agent", github_agent_node)
 
 # The ToolNode is a pre-built node that executes tools.
-# Initialize it with the Outlook tools
-tool_node = ToolNode(outlook_tools)
+# Initialize it with all available tools.
+tool_node = ToolNode(outlook_tools + github_tools)
 graph_builder.add_node("tools", tool_node)
 
 
@@ -103,19 +112,21 @@ graph_builder.add_conditional_edges("supervisor", supervisor_router)
 def after_agent_router(state: AgentState):
     print("---AGENT ROUTER---")
     last_message = state["messages"][-1]
-    if last_message.tool_calls:
+    if hasattr(last_message, "tool_calls") and last_message.tool_calls:
         print("Routing to tools")
         return "tools"
     else:
         print("Routing back to supervisor")
+        # We are returning to the supervisor, so we need to clear the 'next' field
+        # so the supervisor knows to pick a new agent.
         return "supervisor"
 
 # Edges from the workers go to our new router
 graph_builder.add_conditional_edges("outlook_agent", after_agent_router)
+graph_builder.add_conditional_edges("github_agent", after_agent_router)
 
 # The tool node always routes back to the supervisor
 graph_builder.add_edge("tools", "supervisor")
-
 
 # 3. Compile the graph
 graph = graph_builder.compile()
@@ -125,96 +136,14 @@ graph = graph_builder.compile()
 # display(Image(graph.get_graph().draw_png()))
 
 
-# This is how you would run the graph
-if __name__ == "__main__":
-    # The initial state can be populated with the initial transcript
-    # initial_state = {
-    #     "messages": [HumanMessage(content="Please send an email to ysgupta@wisc.edu. The subject should be 'Hello from the agent' and the body should be 'This is a test message from the multi-agent system.'")],
-    # }
-    # # The stream() method allows us to see the state at each step
-    # for step in graph.stream(initial_state, {"recursion_limit": 10}):
-    #     print(f"Step: {list(step.keys())[0]}")
-    #     print(step)
-    #     print("---")
-
-    # Import the transcription client
-    from tools.audio.whisper_groq import run_transcription_client
-    import sys
-    # Add the whisperlive directory to the path
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'whisperlive_env', 'WhisperLive'))
-
-    class TranscriptionHandler:
-        def __init__(self, graph):
-            self.graph = graph
-            self.full_transcript = ""
-            self.processed_length = 0
-            self.is_agent_working = False
-
-        def handle_transcription(self, transcript: str):
-            """
-            This function is called when a new transcription is available.
-            It accumulates the transcript, checks for a command, and then
-            feeds the transcript into the graph and prints the final result.
-            """
-            if self.is_agent_working:
-                print("Agent is busy. Ignoring new transcript...")
-                return
-
-            self.full_transcript = transcript
-            unprocessed_text = self.full_transcript[self.processed_length:].strip()
-
-            if not unprocessed_text:
-                return
-
-            print(f"\n--- TRANSCRIPTION RECEIVED ---\n{unprocessed_text}\n------------------------------")
-            
-            self.transcript_buffer = unprocessed_text
-
-            trigger_words = [
-                "schedule", "book", "find", "add", "create", "send", "post", "merge", 
-                "assign", "remind", "update", "delete", "get", "pull", "push",
-                "run", "execute", "what", "who", "where", "when", "why", "how"
-            ]
-
-            if not any(word in self.transcript_buffer.lower() for word in trigger_words):
-                print("No trigger word detected. Waiting for a command...")
-                return
-
-            self.is_agent_working = True
-            
-            print("--- TRIGGER WORD DETECTED ---")
-            print("--- INVOKING AGENT ---")
-
-            initial_state = {
-                "messages": [HumanMessage(content=self.transcript_buffer)],
-            }
-            
-            final_state = None
-            try:
-                for step in self.graph.stream(initial_state, {"recursion_limit": 15}):
-                    print(f"Step: {list(step.keys())[0]}")
-                    final_state = step
-
-                if final_state:
-                    print("--- AGENT WORK COMPLETE ---")
-                    final_message = final_state[list(final_state.keys())[0]]['messages'][-1]
-                    print(f"Final Response: {final_message.content}")
-            
-            except Exception as e:
-                print(f"--- AGENT ERROR ---")
-                print(f"An error occurred: {e}")
-
-            finally:
-                print("--- FLUSHING PROCESSED TRANSCRIPT ---")
-                # Mark the transcript as processed by updating the length
-                self.processed_length = len(self.full_transcript)
-                self.is_agent_working = False
-                print("\n🎤 Listening for next command...")
-
-    handler = TranscriptionHandler(graph)
-
-    print("Starting audio transcription client...")
-    print("Speak into your microphone. The agent will respond when it has a complete thought.")
-    run_transcription_client(handler.handle_transcription)
-
+# # This is how you would run the graph
+# if __name__ == "__main__":
+#     initial_state = {
+#         "messages": [HumanMessage(content="Hey, can you add NikhilSethuram as a reviewer on the user auth PR?")],
+#     }
+#     # The stream() method allows us to see the state at each step
+#     for step in graph.stream(initial_state, {"recursion_limit": 10}):
+#         print(f"Step: {list(step.keys())[0]}")
+#         print(step)
+#         print("---")
 
