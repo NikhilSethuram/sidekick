@@ -12,7 +12,17 @@ from langgraph.prebuilt import ToolNode
 #     create_google_calendar_agent,
 #     google_calendar_tools,
 # )
+
+# Import the Outlook calendar agent
+from agents.workers.outlook_calendar.agent import create_outlook_calendar_agent
+
 from .state import AgentState
+
+# Initialize the LLM
+llm = ChatAnthropic(model="claude-3-opus-20240229")
+
+# Create the Outlook calendar agent
+outlook_agent, outlook_tools = create_outlook_calendar_agent(llm)
 
 # This is a placeholder for the real supervisor agent
 def supervisor_node(state: AgentState):
@@ -23,7 +33,15 @@ def supervisor_node(state: AgentState):
     # For the skeleton, we'll just check if there are any messages yet.
     # If not, we'll route to a worker. Otherwise, we'll end.
     if len(state["messages"]) < 2:
-        next_agent = "google_calendar_agent"
+        # Check transcript for keywords to route to appropriate agent
+        transcript_text = " ".join(state.get("transcript", [])).lower()
+        
+        # Route to Outlook calendar agent for email/meeting related requests
+        if any(keyword in transcript_text for keyword in ["email", "send", "meeting", "schedule", "calendar", "outlook"]):
+            next_agent = "outlook_calendar_agent"
+        else:
+            next_agent = "google_calendar_agent"  # default fallback
+            
         print(f"Routing to {next_agent}")
         return {"next": next_agent}
     else:
@@ -45,6 +63,29 @@ def agent_node(state: AgentState):
     )
     return {"messages": [message]}
 
+# Function to create the final agent node for Outlook calendar
+def outlook_agent_node(state: AgentState):
+    print(f"---OUTLOOK CALENDAR AGENT---")
+    print(state)
+    # Get the last human message as input
+    last_human_message = None
+    for msg in reversed(state["messages"]):
+        if isinstance(msg, HumanMessage):
+            last_human_message = msg.content
+            break
+    
+    if not last_human_message:
+        # If no human message, use transcript
+        last_human_message = " ".join(state.get("transcript", []))
+    
+    # Invoke the Outlook agent
+    result = outlook_agent.invoke({
+        "input": last_human_message,
+        "chat_history": state["messages"]
+    })
+    
+    return {"messages": [result]}
+
 
 # The final graph is created here
 graph_builder = StateGraph(AgentState)
@@ -53,9 +94,11 @@ graph_builder = StateGraph(AgentState)
 graph_builder.add_node("supervisor", supervisor_node)
 graph_builder.add_node("google_calendar_agent", agent_node)
 graph_builder.add_node("github_agent", agent_node)
+graph_builder.add_node("outlook_calendar_agent", outlook_agent_node)
+
 # The ToolNode is a pre-built node that executes tools.
-# For the skeleton, we'll initialize it with an empty list of tools.
-tool_node = ToolNode([])
+# Initialize it with the Outlook tools
+tool_node = ToolNode(outlook_tools)
 graph_builder.add_node("tools", tool_node)
 
 
@@ -82,6 +125,7 @@ def after_agent_router(state: AgentState):
 # Edges from the workers go to our new router
 graph_builder.add_conditional_edges("google_calendar_agent", after_agent_router)
 graph_builder.add_conditional_edges("github_agent", after_agent_router)
+graph_builder.add_conditional_edges("outlook_calendar_agent", after_agent_router)
 
 # The tool node always routes back to the supervisor
 graph_builder.add_edge("tools", "supervisor")
@@ -91,8 +135,8 @@ graph_builder.add_edge("tools", "supervisor")
 graph = graph_builder.compile()
 
 # You can visualize the graph with this line (requires a few extra installs)
-from IPython.display import Image, display
-display(Image(graph.get_graph().draw_png()))
+# from IPython.display import Image, display
+# display(Image(graph.get_graph().draw_png()))
 
 
 # This is how you would run the graph

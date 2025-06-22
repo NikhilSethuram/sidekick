@@ -138,14 +138,20 @@ class OutlookIntegration:
         if not self.is_initialized:
             raise RuntimeError("Outlook integration not initialized")
 
+        # Include attendees in the subject if provided
+        meeting_subject = subject
+        if attendees:
+            attendee_names = ", ".join(attendees)
+            meeting_subject = f"{subject} (with: {attendee_names})"
+
         event = {
-    "subject": subject,
-    "body": {"contentType": "text", "content": description},
-    "start": {"dateTime": start_time.isoformat(), "timeZone": "UTC"},
-    "end":   {"dateTime": (start_time + timedelta(minutes=duration_minutes)).isoformat(),
-              "timeZone": "UTC"},
-    "location": {"displayName": "Teams meeting"},
-}
+            "subject": meeting_subject,
+            "body": {"contentType": "text", "content": description},
+            "start": {"dateTime": start_time.isoformat(), "timeZone": "UTC"},
+            "end": {"dateTime": (start_time + timedelta(minutes=duration_minutes)).isoformat(),
+                    "timeZone": "UTC"},
+            "location": {"displayName": "Teams meeting"},
+        }
 
         result = await self.mcp_client.send_mcp_request(
             "tools/call", {"name": "create-calendar-event", "arguments": {"body": event}}
