@@ -29,7 +29,7 @@ from core.state import AgentState
 # Configuration - Update with your meeting URL
 ATTENDEE_API_KEY = "81d137awvcp1aK5tSxxyrNoEX6dhjQXg"
 ATTENDEE_BASE_URL = "http://localhost:8000/api/v1"
-ZOOM_MEETING_URL = "https://us04web.zoom.us/j/71455358172?pwd=4lJCKKiaExPDnYTsvFaMOvdvsEvoxP.1"
+ZOOM_MEETING_URL = "https://us04web.zoom.us/j/76716249514?pwd=yWw3cG3c7T74Ick8yp4hMKp6lHazzd.1"
 
 class ZoomMeetingActions:
     def __init__(self, buffer_window_seconds=30, cooldown_seconds=3):
@@ -277,7 +277,7 @@ class ZoomMeetingActions:
                         command_state = {"messages": [command_msg]}
                         tool_calls_found = []
                         
-                        for step in agent_execution_graph.stream(command_state, {"recursion_limit": 10}):
+                        for step in agent_execution_graph.stream(command_state, {"recursion_limit": 15}):
                             step_name = list(step.keys())[0]
                             step_state = step[step_name]
                             
@@ -574,7 +574,7 @@ def main():
     
     # Set default model name if not provided
     if not os.environ.get("MODEL_NAME"):
-        os.environ["MODEL_NAME"] = "llama-3.3-70b-versatile"
+        os.environ["MODEL_NAME"] = "claude-3-5-sonnet-20241022"
     
     # Check required environment variables
     required_env_vars = ["ANTHROPIC_API_KEY", "GROQ_API_KEY"]

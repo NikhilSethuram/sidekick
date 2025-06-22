@@ -138,12 +138,9 @@ agent_execution_graph = graph_builder.compile()
 if __name__ == "__main__":
     sample_transcript = [
         "Cool, let's wrap up.",
-        "Nikhil, can you add yashg4509 as a reviewer on the User Auth PR?",
-        "Also, book a 30-minute meeting for tomorrow morning to sync on the deployment plan.",
+        "Add Yash as a reviewer on the Dummy PR?",
+        "Also, book a 30-minute meeting with Yashfor tomorrow morning to sync on the deployment plan.",
         "I think that's all for now. Great work everyone.",
-        "Oh, wait, one more thing. Create a ticket for the button alignment bug we saw.",
-        "Let's assign it to me for now.",
-        "And send a message to the general channel about the new feature freeze."
     ]
 
     initial_state = {"transcript": sample_transcript, "messages": []}

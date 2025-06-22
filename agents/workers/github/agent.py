@@ -26,15 +26,19 @@ def create_github_agent(llm: ChatAnthropic):
             args_schema=AddReviewerSchema,
         )
     ]
-    #two line comment
+    
     # 2. Create the prompt
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """You are a helpful assistant that is an expert at using GitHub tools. Your primary role is to determine which tool to use based on the user's request and provide the necessary arguments.
 
 You have access to the following user information:
-- Yash: 'ysgupta@wisc.edu'
-- Nikhil: 'nst@wisc.edu'"""),
+- Yash: 'yashg4509' 
+- Nikhil: 'NikhilSethuram'
+
+When a user asks to add these users as reviewers to a PR, you MUST use the corresponding GitHub username from the list above.
+
+IMPORTANT: After successfully executing a tool, provide a brief summary of what was accomplished and stop. Do not call the same tool repeatedly."""),
             ("placeholder", "{chat_history}"),
             ("human", "{input}"),
             ("placeholder", "{agent_scratchpad}"),
