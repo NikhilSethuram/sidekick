@@ -155,9 +155,12 @@ if __name__ == "__main__":
 
     # 2. Define a sample meeting transcript (in a real scenario, this would be fetched live)
     sample_transcript = [
-        "This is a test attempt.",
-        "this is a test attempt recording in progress checking if whisper works thank you",
-        "this is a test attempt recording in progress checking if whisper works thank Thank you."
+        "Cool, let's wrap up.",
+        "Yash, can you add Nikhil as a reviewer on the user auth PR?",
+        "Also, book a 30-minute meeting for tomorrow morning to sync on the deployment plan.",
+        "Oh, and create a GitHub issue for the login timeout bug we discussed - assign it to Nikhil.",
+        "Can you send an email to the team about the security updates? Include Yash and Nikhil.",
+        "I think that's all for now. Great work everyone.",
     ]
 
     initial_state = {"transcript": sample_transcript, "messages": []}

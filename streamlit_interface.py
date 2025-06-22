@@ -7,12 +7,14 @@ from datetime import datetime
 import sys
 sys.path.append('/Users/yashgupta/Desktop/Programming/calhacks2025')
 from agents.workers.github.tools import add_reviewer_to_pr, create_github_issue
-from agents.workers.outlook_calendar.tools import schedule_meeting
+from agents.workers.outlook_calendar.tools import schedule_meeting, send_email
 
 # --- Tool Mapping ---
 TOOL_MAP = {
     "add_reviewer_to_pr": add_reviewer_to_pr,
     "schedule_meeting": schedule_meeting,
+    "create_github_issue": create_github_issue,
+    "send_email": send_email
 }
 
 # --- Human-like Interface Functions ---
@@ -20,19 +22,18 @@ def get_action_avatar(tool_name):
     """Get appropriate avatar for each action type."""
     avatars = {
         "add_reviewer_to_pr": "👨‍💻",
+        "create_github_issue": "👨‍💻", 
         "schedule_meeting": "📅",
-        "send_email": "✉️",
+        "send_email": "✉️"
     }
     return avatars.get(tool_name, "🤖")
 
 def get_action_avatar_and_type(tool_name):
     """Get avatar and type based on tool name"""
-    if 'github' in tool_name.lower():
+    if tool_name in ['add_reviewer_to_pr', 'create_github_issue']:
         return "👨‍💻", "GitHub", "github-avatar"
-    elif 'calendar' in tool_name.lower() or 'meeting' in tool_name.lower():
-        return "📅", "Calendar", "calendar-avatar"
-    elif 'jira' in tool_name.lower():
-        return "📋", "Jira", "jira-avatar"
+    elif tool_name in ['schedule_meeting', 'send_email']:
+        return "📅", "Outlook", "calendar-avatar"
     else:
         return "🔧", "Tool", "github-avatar"
 
@@ -43,28 +44,37 @@ def get_human_description(task):
     
     if tool_name == 'add_reviewer_to_pr':
         reviewer = args.get('reviewer_username', args.get('reviewer', 'someone'))
-        pr_num = args.get('pr_number', 'a PR')
-        repo = args.get('repo_name', 'the repository')
-        return f"I'd like to add **{reviewer}** as a reviewer on PR #{pr_num} in {repo}"
+        pr_name = args.get('pr_name', 'a PR')
+        return f"I'd like to add <strong>{reviewer}</strong> as a reviewer on the <strong>{pr_name}</strong> pull request"
         
     elif tool_name == 'create_github_issue':
         title = args.get('title', 'New Issue')
-        repo = args.get('repo_name', 'the repository')
         assignee = args.get('assignee')
-        desc = f"I want to create a new issue titled **\"{title}\"** in {repo}"
+        desc = f"I want to create a new GitHub issue: <strong>\"{title}\"</strong>"
         if assignee:
-            desc += f" and assign it to **{assignee}**"
+            desc += f" and assign it to <strong>{assignee}</strong>"
         return desc
         
     elif tool_name == 'schedule_meeting':
         subject = args.get('subject', 'Meeting')
         attendees = args.get('attendees', [])
         start_time = args.get('start_time', '')
-        desc = f"I'd like to schedule **\"{subject}\"**"
+        duration = args.get('duration_minutes', 60)
+        desc = f"I'd like to schedule <strong>\"{subject}\"</strong>"
         if attendees:
             desc += f" with {', '.join(attendees)}"
         if start_time:
-            desc += f" at {start_time}"
+            desc += f" starting {start_time}"
+        if duration:
+            desc += f" ({duration} minutes)"
+        return desc
+        
+    elif tool_name == 'send_email':
+        recipients = args.get('recipients', [])
+        subject = args.get('subject', 'Email')
+        desc = f"I'd like to send an email about <strong>\"{subject}\"</strong>"
+        if recipients:
+            desc += f" to {', '.join(recipients)}"
         return desc
         
     else:
@@ -80,6 +90,8 @@ def get_impact_description(task):
         return "💡 This will create a new issue that the team can track and work on"
     elif tool_name == 'schedule_meeting':
         return "💡 This will send calendar invites to all attendees"
+    elif tool_name == 'send_email':
+        return "💡 This will send an email to the specified recipients"
     else:
         return "💡 This action will be executed immediately"
 
@@ -316,20 +328,18 @@ def execute_tool(task):
         
         if tool_name == 'add_reviewer_to_pr':
             result = add_reviewer_to_pr(
-                repo_name=args.get('repo_name'),
-                pr_number=args.get('pr_number'),
-                reviewer_username=args.get('reviewer_username', args.get('reviewer'))
+                pr_name=args.get('pr_name', args.get('pr_title', 'PR')),
+                reviewer=args.get('reviewer_username', args.get('reviewer'))
             )
-            return True, f"Successfully added reviewer to PR #{args.get('pr_number')}"
+            return True, f"Successfully added reviewer: {result}"
             
         elif tool_name == 'create_github_issue':
             result = create_github_issue(
-                repo_name=args.get('repo_name'),
                 title=args.get('title'),
                 body=args.get('body', ''),
                 assignee=args.get('assignee')
             )
-            return True, f"Successfully created GitHub issue: {args.get('title')}"
+            return True, f"Successfully created GitHub issue: {result}"
             
         elif tool_name == 'schedule_meeting':
             result = schedule_meeting(
@@ -340,6 +350,14 @@ def execute_tool(task):
                 body=args.get('body', '')
             )
             return True, f"Successfully scheduled meeting: {args.get('subject')}"
+            
+        elif tool_name == 'send_email':
+            result = send_email(
+                recipients=args.get('recipients', []),
+                subject=args.get('subject', 'Email'),
+                body=args.get('body', '')
+            )
+            return True, f"Successfully sent email: {args.get('subject')}"
             
         else:
             return False, f"Unknown tool: {tool_name}"
@@ -691,65 +709,62 @@ else:
         description = get_human_description(task)
         impact = get_impact_description(task)
         
-        st.markdown(f"""
-        <div class="action-card">
-            <div class="action-header">
-                <div class="action-avatar {avatar_class}">
-                    {avatar}
+        # Create a clean card using Streamlit components
+        with st.container():
+            # Main card with better styling
+            st.markdown(f"""
+            <div class="action-card">
+                <div class="action-header">
+                    <div class="action-avatar {avatar_class}">
+                        {avatar}
+                    </div>
+                    <div>
+                        <div class="action-type">{action_type} Action</div>
+                        <div class="action-title">Ready to execute</div>
+                    </div>
                 </div>
-                <div>
-                    <div class="action-type">{action_type} Action</div>
-                    <div class="action-title">Ready to execute</div>
+                <div class="action-description">
+                    {description}
+                </div>
+                <div class="action-impact">
+                    {impact}
                 </div>
             </div>
+            """, unsafe_allow_html=True)
             
-            <div class="action-description">
-                {description}
-            </div>
+            # Action buttons - clean and compact
+            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
             
-            <div class="action-impact">
-                {impact}
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # Action buttons
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
-            if st.button("✅ Yes, do it!", key=f"approve_{i}", help="Execute this action"):
-                with st.spinner("Executing..."):
-                    success, message = execute_tool(task)
-                    
-                    if success:
-                        task['status'] = 'success'
-                        task['result'] = message
-                        task['executed_at'] = datetime.now().isoformat()
-                        st.markdown(f'<div class="success-alert">✅ {message}</div>', unsafe_allow_html=True)
-                    else:
-                        task['status'] = 'error'
-                        task['error'] = message
-                        task['executed_at'] = datetime.now().isoformat()
-                        st.markdown(f'<div class="error-alert">❌ {message}</div>', unsafe_allow_html=True)
-                    
+            # Simple two-column layout for buttons
+            btn_col1, btn_col2, btn_col3, btn_col4 = st.columns([2, 1, 1, 2])
+            
+            with btn_col2:
+                if st.button("✅ Approve", key=f"approve_{i}", help="Execute this action", type="primary"):
+                    with st.spinner("Executing..."):
+                        success, message = execute_tool(task)
+                        
+                        if success:
+                            task['status'] = 'success'
+                            task['result'] = message
+                            task['executed_at'] = datetime.now().isoformat()
+                            st.success(f"✅ {message}")
+                        else:
+                            task['status'] = 'error'
+                            task['error'] = message
+                            task['executed_at'] = datetime.now().isoformat()
+                            st.error(f"❌ {message}")
+                        
+                        save_tasks(tasks)
+                        st.rerun()
+            
+            with btn_col3:
+                if st.button("❌ Skip", key=f"reject_{i}", help="Skip this action"):
+                    task['status'] = 'rejected'
+                    task['rejected_at'] = datetime.now().isoformat()
                     save_tasks(tasks)
                     st.rerun()
-        
-        with col2:
-            if st.button("❌ No, skip this", key=f"reject_{i}", help="Skip this action"):
-                task['status'] = 'rejected'
-                task['rejected_at'] = datetime.now().isoformat()
-                save_tasks(tasks)
-                st.rerun()
-        
-        # Technical details (expandable)
-        with st.expander("🔧 Technical Details", expanded=False):
-            st.json({
-                'tool': task.get('tool_name'),
-                'arguments': task.get('arguments', {}),
-                'detected_at': task.get('created_at', 'Unknown')
-            })
-        
-        st.markdown("</div>", unsafe_allow_html=True)
+            
+            st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
 
 # Auto-refresh
 if st.button("🔄 Refresh", help="Check for new actions"):
