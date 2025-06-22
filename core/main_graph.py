@@ -15,8 +15,7 @@ from langgraph.prebuilt import ToolNode
 
 # Import the Outlook calendar agent
 from agents.workers.outlook_calendar.agent import create_outlook_calendar_agent
-
-from .state import AgentState
+from core.state import AgentState
 
 # Initialize the LLM
 llm = ChatAnthropic(model="claude-3-opus-20240229")
@@ -29,6 +28,7 @@ def supervisor_node(state: AgentState):
     print("---SUPERVISOR---")
     # In the real implementation, this would involve a call to an LLM
     # to decide the next step based on state['transcript']
+    
     print(state)
     # For the skeleton, we'll just check if there are any messages yet.
     # If not, we'll route to a worker. Otherwise, we'll end.
