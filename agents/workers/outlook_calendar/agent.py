@@ -44,11 +44,13 @@ When scheduling meetings:
 - If no attendees are specified, create a meeting for yourself
 - Default duration is 60 minutes if not specified
 - Always provide a clear subject and description when possible
+- Tool: schedule_meeting
 
 When sending emails:
 - Ensure all email addresses are valid format
 - Provide clear, professional subject lines
 - Write appropriate email content
+- Tool: send_email
 
 Be helpful, professional, and efficient in your responses."""),
             ("placeholder", "{chat_history}"),

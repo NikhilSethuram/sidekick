@@ -26,6 +26,17 @@ llm = ChatAnthropic(model=os.environ.get("MODEL_NAME"))
 def supervisor_node(state: AgentState):
     """Invokes the supervisor to decide the next step."""
     print("---SUPERVISOR---")
+    
+    # This list should be kept in sync with the agents passed to the supervisor
+    worker_agents = ["outlook_agent"]
+    
+    # If there is only one worker agent and this is the first time the supervisor
+    # is called, we can bypass the LLM call and route directly to the worker.
+    if len(worker_agents) == 1 and len(state["messages"]) == 1:
+        agent_name = worker_agents[0]
+        print(f"Single worker detected. Bypassing supervisor LLM call and routing directly to: {agent_name}")
+        return {"next": agent_name}
+
     # The supervisor returns a dict with a "messages" key.
     result = supervisor_workflow.invoke(state)
     print(f"Supervisor result: {result}")
@@ -135,7 +146,8 @@ if __name__ == "__main__":
     class TranscriptionHandler:
         def __init__(self, graph):
             self.graph = graph
-            self.transcript_buffer = ""
+            self.full_transcript = ""
+            self.processed_length = 0
             self.is_agent_working = False
 
         def handle_transcription(self, transcript: str):
@@ -148,15 +160,22 @@ if __name__ == "__main__":
                 print("Agent is busy. Ignoring new transcript...")
                 return
 
-            print(f"\n--- TRANSCRIPTION RECEIVED ---\n{transcript}\n------------------------------")
+            self.full_transcript = transcript
+            unprocessed_text = self.full_transcript[self.processed_length:].strip()
+
+            if not unprocessed_text:
+                return
+
+            print(f"\n--- TRANSCRIPTION RECEIVED ---\n{unprocessed_text}\n------------------------------")
             
-            self.transcript_buffer = transcript
+            self.transcript_buffer = unprocessed_text
 
             trigger_words = [
                 "schedule", "book", "find", "add", "create", "send", "post", "merge", 
                 "assign", "remind", "update", "delete", "get", "pull", "push",
                 "run", "execute", "what", "who", "where", "when", "why", "how"
             ]
+
             if not any(word in self.transcript_buffer.lower() for word in trigger_words):
                 print("No trigger word detected. Waiting for a command...")
                 return
@@ -186,8 +205,9 @@ if __name__ == "__main__":
                 print(f"An error occurred: {e}")
 
             finally:
-                print("--- CLEARING TRANSCRIPT BUFFER ---")
-                self.transcript_buffer = ""
+                print("--- FLUSHING PROCESSED TRANSCRIPT ---")
+                # Mark the transcript as processed by updating the length
+                self.processed_length = len(self.full_transcript)
                 self.is_agent_working = False
                 print("\n🎤 Listening for next command...")
 
