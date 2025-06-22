@@ -1,9 +1,7 @@
 # 🎯 Sidekick
 
 <div align="center">
-
-![Sidekick Logo](https://img.shields.io/badge/🤖-Sidekick-blue?style=for-the-badge&logo=zoom&logoColor=white)
-
+    
 **Your AI-powered Zoom companion that transforms meeting conversations into instant automated actions**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg?style=flat-square&logo=python)](https://www.python.org/)
