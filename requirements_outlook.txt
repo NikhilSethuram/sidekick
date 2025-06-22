@@ -1,0 +1,5 @@
+# Outlook Integration Dependencies
+python-dateutil>=2.8.2
+asyncio
+typing-extensions>=4.0.0
+aiohttp>=3.8.0 
