@@ -301,6 +301,7 @@ class ZoomMeetingActions:
             except Exception as e:
                 print(f"❌ Error in meeting transcript processing: {e}")
 
+#one line comment
     def _on_transcription_received(self, text: str, segments=None):
         """Handle new transcription from WhisperLive"""
         if not text or not text.strip():
