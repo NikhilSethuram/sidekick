@@ -26,7 +26,7 @@ def run_transcription_client(on_transcription):
             lang="en",
             translate=False,
             model="small",
-            use_vad=False,
+            use_vad=True,
             transcription_callback=lambda text, segments: on_transcription(text)
         )
         print("✅ Connected to WhisperLive server")
@@ -50,7 +50,7 @@ def test_groq_microphone():
             lang="en",
             translate=False,
             model="small",
-            use_vad=False
+            use_vad=True
         )
         
         print("✅ Connected to WhisperLive server")

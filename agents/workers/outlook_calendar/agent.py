@@ -169,7 +169,7 @@ class AgentRunnable(Runnable):
 load_dotenv()
 
 # Instantiate the LLM
-llm = ChatAnthropic(model="claude-3-5-sonnet-20241022", api_key=os.environ.get("ANTHROPIC_API_KEY"))
+llm = ChatAnthropic(model=os.environ.get("MODEL_NAME"), api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 # Create the base agent and tools
 base_agent, outlook_tools = create_outlook_calendar_agent(llm)

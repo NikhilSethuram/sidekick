@@ -6,7 +6,7 @@ from langgraph_supervisor import create_supervisor
 from agents.workers.outlook_calendar.agent import outlook_agent, outlook_tools
 
 load_dotenv()
-model = ChatAnthropic(model="claude-3-5-sonnet-20241022", api_key=os.environ.get("ANTHROPIC_API_KEY"))
+model = ChatAnthropic(model=os.environ.get("MODEL_NAME"), api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 supervisor_graph = create_supervisor(
     [outlook_agent],

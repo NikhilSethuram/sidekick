@@ -20,7 +20,7 @@ from agents.workers.outlook_calendar.agent import outlook_agent, outlook_tools
 from core.state import AgentState
 
 # Initialize the LLM
-llm = ChatAnthropic(model="claude-3-opus-20240229")
+llm = ChatAnthropic(model=os.environ.get("MODEL_NAME"))
 
 # The supervisor node now simply invokes our compiled supervisor workflow
 def supervisor_node(state: AgentState):
@@ -132,37 +132,69 @@ if __name__ == "__main__":
     # Add the whisperlive directory to the path
     sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'whisperlive_env', 'WhisperLive'))
 
+    class TranscriptionHandler:
+        def __init__(self, graph):
+            self.graph = graph
+            self.transcript_buffer = ""
+            self.is_agent_working = False
 
-    def handle_transcription(transcript: str):
-        """
-        This function is called when a new transcription is available.
-        It feeds the transcript into the graph and prints the final result.
-        """
-        print(f"\n--- TRANSCRIPTION RECEIVED ---\n{transcript}\n------------------------------")
-        
-        # Prepare the initial state for the graph
-        initial_state = {
-            "messages": [HumanMessage(content=transcript)],
-        }
-        
-        print("--- INVOKING AGENT ---")
-        # Invoke the graph. We'll use stream to see the steps, but only print the final output.
-        final_state = None
-        for step in graph.stream(initial_state, {"recursion_limit": 15}):
-            print(f"Step: {list(step.keys())[0]}")
-            final_state = step
+        def handle_transcription(self, transcript: str):
+            """
+            This function is called when a new transcription is available.
+            It accumulates the transcript, checks for a command, and then
+            feeds the transcript into the graph and prints the final result.
+            """
+            if self.is_agent_working:
+                print("Agent is busy. Ignoring new transcript...")
+                return
 
-        if final_state:
-            print("--- AGENT WORK COMPLETE ---")
-            # The final response is in the 'messages' of the last agent's output
-            final_message = final_state[list(final_state.keys())[0]]['messages'][-1]
-            print(f"Final Response: {final_message.content}")
-        
-        print("\n🎤 Listening for next command...")
+            print(f"\n--- TRANSCRIPTION RECEIVED ---\n{transcript}\n------------------------------")
+            
+            self.transcript_buffer = transcript
 
+            trigger_words = [
+                "schedule", "book", "find", "add", "create", "send", "post", "merge", 
+                "assign", "remind", "update", "delete", "get", "pull", "push",
+                "run", "execute", "what", "who", "where", "when", "why", "how"
+            ]
+            if not any(word in self.transcript_buffer.lower() for word in trigger_words):
+                print("No trigger word detected. Waiting for a command...")
+                return
+
+            self.is_agent_working = True
+            
+            print("--- TRIGGER WORD DETECTED ---")
+            print("--- INVOKING AGENT ---")
+
+            initial_state = {
+                "messages": [HumanMessage(content=self.transcript_buffer)],
+            }
+            
+            final_state = None
+            try:
+                for step in self.graph.stream(initial_state, {"recursion_limit": 15}):
+                    print(f"Step: {list(step.keys())[0]}")
+                    final_state = step
+
+                if final_state:
+                    print("--- AGENT WORK COMPLETE ---")
+                    final_message = final_state[list(final_state.keys())[0]]['messages'][-1]
+                    print(f"Final Response: {final_message.content}")
+            
+            except Exception as e:
+                print(f"--- AGENT ERROR ---")
+                print(f"An error occurred: {e}")
+
+            finally:
+                print("--- CLEARING TRANSCRIPT BUFFER ---")
+                self.transcript_buffer = ""
+                self.is_agent_working = False
+                print("\n🎤 Listening for next command...")
+
+    handler = TranscriptionHandler(graph)
 
     print("Starting audio transcription client...")
     print("Speak into your microphone. The agent will respond when it has a complete thought.")
-    run_transcription_client(handle_transcription)
+    run_transcription_client(handler.handle_transcription)
 
 
