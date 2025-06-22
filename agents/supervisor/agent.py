@@ -1,34 +1,73 @@
 import os
+import json
 from dotenv import load_dotenv
-from langchain_anthropic import ChatAnthropic  
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
-from langgraph_supervisor import create_supervisor
-from agents.workers.outlook_calendar.agent import outlook_agent, outlook_tools
 
 load_dotenv()
+
 model = ChatAnthropic(model=os.environ.get("MODEL_NAME"), api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
-supervisor_graph = create_supervisor(
-    [outlook_agent],
-    model=model,
-    prompt="""You are a supervisor agent responsible for managing a team of specialized worker agents.
+prompt_template = """
+You are an expert at processing meeting transcripts. Your task is to analyze the following transcript and identify any specific, actionable commands or tasks that were mentioned.
 
-Your primary role is to understand the user's request, break it down into actionable steps, and delegate each step to the most appropriate worker agent.
+**Instructions:**
+1.  Read the entire transcript carefully.
+2.  Identify all explicit requests or action items. These could be things like assigning a task, scheduling a meeting, creating a document, or sending a message.
+3.  For each identified action, formulate a clear and concise command that a worker agent can execute.
+4.  If the same command is repeated, only include it once.
+5.  Return your findings as a JSON array of strings, where each string is a self-contained command.
+6.  If no actionable commands are found, return an empty JSON array `[]`.
 
-You have access to the following worker agents:
-{members}
+**Example:**
 
-Each worker agent has a specific set of tools and capabilities. Your job is to determine which worker is best suited to handle the current task based on the user's input.
+**Transcript:**
+"Okay team, great standup. For the new login flow, can you add Sara as a reviewer on the auth PR? Also, let's schedule a follow-up for tomorrow at 3 PM to review the designs. And please, someone send a reminder to the #eng channel about the code freeze."
 
-Here is your workflow:
-1.  **Analyze the request:** Carefully read the latest user request to understand their goal.
-2.  **Select the best agent:** Based on the request, choose the most appropriate worker agent from the available list to address the user's request. You are provided with a list of agents and their descriptions.
-3.  **Specify the next agent:** Your response must be only the name of the selected agent. For example, if the user wants to schedule a meeting, and you have an 'outlook_agent' available, you should respond with "outlook_agent". Do not add any other text to your response.
+**Your Response:**
+[
+    "add Sara as a reviewer on the auth PR",
+    "schedule a meeting for tomorrow at 3 PM to review the designs",
+    "send a reminder to the #eng channel about the code freeze"
+]
 
-You must route the tasks to the agents. You should not try to answer the user's request directly.
+**Transcript to Analyze:**
+{transcript}
+
+**Your Response:**
 """
-)
 
-workflow = supervisor_graph.compile()
+def workflow(state: dict):
+    """
+    This function processes the meeting transcript to extract actionable commands.
+    """
+    print("---EXTRACTING COMMANDS FROM TRANSCRIPT---")
+    transcript_text = "\n".join(state["transcript"])
+
+    # If the transcript is empty, there's nothing to do.
+    if not transcript_text.strip():
+        return {"messages": []}
+
+    prompt = prompt_template.format(transcript=transcript_text)
+    
+    response = model.invoke(prompt)
+    
+    try:
+        # The model should return a JSON array of strings.
+        commands = json.loads(response.content)
+    except json.JSONDecodeError:
+        print("Error: Could not decode JSON from model response.")
+        print(f"Response content: {response.content}")
+        return {"messages": []}
+
+    # We convert each command into a HumanMessage.
+    # The main graph will then process each of these messages.
+    new_messages = [HumanMessage(content=cmd) for cmd in commands]
+    
+    print(f"Extracted {len(new_messages)} commands.")
+    
+    # We will return these messages to be processed one by one.
+    # For now, let's just add them to the state. The graph needs to be updated to handle this.
+    return {"messages": new_messages}
 
 
