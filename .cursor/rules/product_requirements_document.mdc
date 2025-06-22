@@ -1,0 +1,253 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Sidekick - Product Requirements Document
+
+## 🎯 Product Overview
+
+**Vision:** An AI-powered Zoom companion that joins meetings, listens in real-time, and executes contextual actions through natural language commands using autonomous agents.
+
+**Core Value Proposition:** Turn meeting conversations into instant automated actions across your entire workflow ecosystem.
+
+## 🚀 Core Features
+
+### Real-Time Audio Processing
+- **Live Transcription**: Continuous speech-to-text using Groq's ultra-fast models
+- **Context Awareness**: Maintains conversation context and speaker identification
+- **Command Detection**: Natural language intent extraction from meeting dialogue
+- **Multi-Speaker Handling**: Distinguishes between different participants
+
+### Intelligent Action Engine
+- **Intent Classification**: Uses Claude 4 to parse natural language into actionable commands
+- **Agent Orchestration**: Deploys specialized MCP agents for each platform integration
+- **Approval Workflow**: Real-time popup system for user confirmation before execution
+- **Action Queueing**: Manages multiple simultaneous requests with priority handling
+
+### Agent-Based Execution System
+- **Calendar Agent**: Meeting scheduling, availability checking, invite management
+- **GitHub Agent**: PR management, reviewer assignment, issue creation, repo access
+- **Slack Agent**: Message posting, channel management, user notifications
+- **Notion Agent**: Document creation, database updates, page sharing
+- **Email Agent**: Draft composition, sending, calendar integration
+
+## 🤖 Agent Architecture
+
+### MCP Agent Framework
+Each integration uses Fast-Agent.ai's MCP (Model Control Protocol) system:
+
+```typescript
+interface ZoomMateAgent {
+  name: string;
+  capabilities: string[];
+  tools: MCPTool[];
+  execute(intent: Intent, context: MeetingContext): Promise<ActionResult>;
+}
+```
+
+### Agent Capabilities
+
+#### Calendar Agent
+- **Tools**: `schedule_meeting`, `check_availability`, `find_free_time`, `send_invite`
+- **Triggers**: "Schedule meeting with...", "Find time for...", "Book conference room..."
+- **Context**: Participant emails, preferred times, meeting duration
+
+#### GitHub Agent  
+- **Tools**: `add_reviewer`, `create_pr`, `assign_issue`, `merge_branch`, `create_repo`
+- **Triggers**: "Add reviewer...", "Create issue for...", "Merge the auth PR..."
+- **Context**: Repository access, team members, current PRs
+
+#### Slack Agent
+- **Tools**: `send_message`, `create_channel`, `add_users`, `schedule_message`
+- **Triggers**: "Send notes to...", "Create channel for...", "Notify team..."
+- **Context**: Workspace channels, user mentions, message formatting
+
+#### Notion Agent
+- **Tools**: `create_page`, `update_database`, `add_task`, `share_page`
+- **Triggers**: "Create doc for...", "Add task to...", "Share meeting notes..."
+- **Context**: Workspace structure, page templates, database schemas
+
+## 🎪 User Experience Features
+
+### Live Action Dashboard
+- **Command Stream**: Real-time display of detected intents and processing status
+- **Agent Activity**: Visual representation of which agents are active
+- **Success Metrics**: Live counter of completed actions and time saved
+- **Error Handling**: Clear feedback on failed actions with retry options
+
+### Approval Interface
+- **Smart Popups**: Context-aware approval requests with action previews
+- **Batch Approval**: Handle multiple related actions together
+- **Preference Learning**: Remember user approval patterns for similar requests
+- **Quick Actions**: One-click approval for trusted action types
+
+### Integration Management
+- **Agent Configuration**: Enable/disable specific agents and tools
+- **Credential Management**: Secure OAuth flows for platform connections
+- **Permission Scoping**: Granular control over agent capabilities
+- **Usage Analytics**: Track agent performance and action success rates
+
+## 🛠️ Technical Architecture
+
+### Core Components
+
+#### Audio Processing Pipeline
+```typescript
+interface AudioPipeline {
+  capture: ZoomAudioCapture;
+  transcription: GroqSTTService;
+  preprocessing: AudioBufferManager;
+  streaming: WebSocketConnection;
+}
+```
+
+#### Intent Processing Engine
+```typescript
+interface IntentEngine {
+  extractor: ClaudeNLPService;
+  classifier: IntentClassifier;
+  contextManager: MeetingContextManager;
+  agentRouter: MCPAgentRouter;
+}
+```
+
+#### Agent Execution Framework
+```typescript
+interface AgentFramework {
+  registry: FastAgentRegistry;
+  executor: MCPExecutor;
+  approvalGate: UserApprovalService;
+  resultHandler: ActionResultProcessor;
+}
+```
+
+### Data Flow Architecture
+```
+Audio Stream → Groq STT → Claude Intent → MCP Agent → Tool Execution → User Notification
+     ↓              ↓           ↓            ↓             ↓              ↓
+Meeting Context ← Transcription ← Command ← Agent ← Action Result ← Success/Error
+```
+
+## 🎯 Command Categories
+
+### Meeting Management
+- **Scheduling**: "Schedule follow-up with design team next Tuesday at 2pm"
+- **Invites**: "Add Sarah and Mike to the retrospective meeting"
+- **Rooms**: "Book the large conference room for our next sprint planning"
+
+### Development Workflow
+- **Code Review**: "Add John as a reviewer on the authentication PR"
+- **Issue Tracking**: "Create a bug ticket for the login timeout issue"
+- **Deployment**: "Merge the hotfix branch after the meeting"
+
+### Communication
+- **Team Updates**: "Send meeting summary to the engineering channel"
+- **Notifications**: "Remind the team about the deployment window"
+- **Documentation**: "Create a Notion page with today's decisions"
+
+### Task Management
+- **Action Items**: "Add 'API documentation' to my Notion todo list"
+- **Assignments**: "Assign the performance optimization task to Alex"
+- **Deadlines**: "Set a reminder for the quarterly review next Friday"
+
+## 🔧 Agent Implementation Strategy
+
+### Fast-Agent.ai Integration
+Using Fast-Agent.ai provides:
+- **Pre-built MCP Tools**: Ready-made integrations for popular platforms
+- **Agent Orchestration**: Sophisticated multi-agent coordination
+- **Learning Capabilities**: Agents improve based on user feedback
+- **Scalability**: Easy addition of new agents and capabilities
+
+### Custom Agent Development
+```typescript
+class CalendarAgent extends FastAgent {
+  tools = [
+    new ScheduleMeetingTool(),
+    new CheckAvailabilityTool(),
+    new SendInviteTool()
+  ];
+  
+  async execute(intent: ScheduleIntent, context: MeetingContext) {
+    const availability = await this.checkAvailability(intent.participants);
+    const timeSlot = await this.findOptimalTime(availability, intent.preferences);
+    const result = await this.scheduleMeeting(timeSlot, intent.details);
+    return this.formatResult(result);
+  }
+}
+```
+
+## 🎨 Demo Scenarios
+
+### Scenario 1: Development Team Standup
+**Conversation**: "Let's add Maria as a reviewer on the user auth PR and schedule a code review session for Thursday"
+**Actions**: 
+1. GitHub agent adds Maria as PR reviewer
+2. Calendar agent finds mutual availability
+3. Calendar agent sends meeting invite with PR link
+
+### Scenario 2: Product Planning Meeting
+**Conversation**: "Create a Notion page for the Q2 roadmap and share it with the product team channel"
+**Actions**:
+1. Notion agent creates structured roadmap page
+2. Slack agent posts page link to #product-team
+3. Notion agent grants channel members edit access
+
+### Scenario 3: Client Call Follow-up
+**Conversation**: "Send the meeting recording to client@company.com and add a follow-up task to check on their feedback next week"
+**Actions**:
+1. Email agent drafts message with recording link
+2. Notion agent adds task with deadline reminder
+3. Calendar agent schedules follow-up reminder
+
+## 🔐 Security & Privacy
+
+### Data Handling
+- **Local Processing**: Sensitive audio processing happens client-side
+- **Encrypted Communication**: All agent communications use TLS encryption
+- **Minimal Data Retention**: Transcripts automatically deleted after action completion
+- **User Consent**: Explicit approval required for each platform integration
+
+### Agent Security
+- **Scoped Permissions**: Agents only have access to necessary platform features
+- **Action Auditing**: Complete log of all agent actions with rollback capability
+- **Rate Limiting**: Prevents agents from making excessive API calls
+- **Credential Isolation**: OAuth tokens stored securely and rotated regularly
+
+## 📊 Success Metrics
+
+### Functional Metrics
+- **Intent Accuracy**: 95%+ correct command interpretation
+- **Action Success Rate**: 90%+ successful tool executions
+- **Response Time**: <3 seconds from speech to action completion
+- **Agent Reliability**: 99%+ uptime for core agents
+
+### User Experience Metrics
+- **Approval Rate**: Percentage of detected actions user approves
+- **Time Savings**: Minutes saved per meeting through automation
+- **Integration Usage**: Most frequently used agent capabilities
+- **Error Recovery**: Success rate of retry attempts after failures
+
+## 🚀 Platform Integrations
+
+### Tier 1 Integrations (Core)
+- **Google Calendar**: Meeting scheduling and management
+- **GitHub**: Code repository and workflow management
+- **Slack**: Team communication and notifications
+- **Zoom**: Native meeting platform integration
+### Tier 2 Integrations (Extended)
+- **Notion**: Documentation and knowledge management
+- **Linear**: Issue tracking and project management
+- **Figma**: Design collaboration and asset sharing
+- **Gmail**: Email communication and scheduling
+
+### Tier 3 Integrations (Future)
+- **Jira**: Enterprise project management
+- **Salesforce**: CRM and customer management
+- **Asana**: Task and project coordination
+- **Microsoft Teams**: Alternative meeting platform
+
+---
+
+This product specification focuses on building an intelligent, agent-driven system that transforms meeting conversations into automated workflows across your entire productivity ecosystem.
