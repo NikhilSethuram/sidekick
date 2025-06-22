@@ -117,13 +117,52 @@ graph = graph_builder.compile()
 # This is how you would run the graph
 if __name__ == "__main__":
     # The initial state can be populated with the initial transcript
-    initial_state = {
-        "messages": [HumanMessage(content="Please send an email to ysgupta@wisc.edu. The subject should be 'Hello from the agent' and the body should be 'This is a test message from the multi-agent system.'")],
-    }
-    # The stream() method allows us to see the state at each step
-    for step in graph.stream(initial_state, {"recursion_limit": 10}):
-        print(f"Step: {list(step.keys())[0]}")
-        print(step)
-        print("---")
+    # initial_state = {
+    #     "messages": [HumanMessage(content="Please send an email to ysgupta@wisc.edu. The subject should be 'Hello from the agent' and the body should be 'This is a test message from the multi-agent system.'")],
+    # }
+    # # The stream() method allows us to see the state at each step
+    # for step in graph.stream(initial_state, {"recursion_limit": 10}):
+    #     print(f"Step: {list(step.keys())[0]}")
+    #     print(step)
+    #     print("---")
+
+    # Import the transcription client
+    from tools.audio.whisper_groq import run_transcription_client
+    import sys
+    # Add the whisperlive directory to the path
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'whisperlive_env', 'WhisperLive'))
+
+
+    def handle_transcription(transcript: str):
+        """
+        This function is called when a new transcription is available.
+        It feeds the transcript into the graph and prints the final result.
+        """
+        print(f"\n--- TRANSCRIPTION RECEIVED ---\n{transcript}\n------------------------------")
+        
+        # Prepare the initial state for the graph
+        initial_state = {
+            "messages": [HumanMessage(content=transcript)],
+        }
+        
+        print("--- INVOKING AGENT ---")
+        # Invoke the graph. We'll use stream to see the steps, but only print the final output.
+        final_state = None
+        for step in graph.stream(initial_state, {"recursion_limit": 15}):
+            print(f"Step: {list(step.keys())[0]}")
+            final_state = step
+
+        if final_state:
+            print("--- AGENT WORK COMPLETE ---")
+            # The final response is in the 'messages' of the last agent's output
+            final_message = final_state[list(final_state.keys())[0]]['messages'][-1]
+            print(f"Final Response: {final_message.content}")
+        
+        print("\n🎤 Listening for next command...")
+
+
+    print("Starting audio transcription client...")
+    print("Speak into your microphone. The agent will respond when it has a complete thought.")
+    run_transcription_client(handle_transcription)
 
 
