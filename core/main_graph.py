@@ -155,11 +155,11 @@ if __name__ == "__main__":
 
     # 2. Define a sample meeting transcript (in a real scenario, this would be fetched live)
     sample_transcript = [
-        "Cool, let's wrap up.",
-        "Yash, can you add Nikhil as a reviewer on the user auth PR?",
-        "Also, book a 30-minute meeting for tomorrow morning to sync on the deployment plan.",
+        "Hey everyone, how's your day going? We got a lot of work to do so lets get to it.",
+        "Nikhil do you think you can review my public API PR?",
+        "I also want to sync tomorrow morning for some time to talk over the deployment plan.",
         "Oh, and create a GitHub issue for the login timeout bug we discussed - assign it to Nikhil.",
-        "Can you send an email to the team about the security updates? Include Yash and Nikhil.",
+        "We also need to send out the security updates email to the team - include Yash and Nikhil.",
         "I think that's all for now. Great work everyone.",
     ]
 
