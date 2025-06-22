@@ -20,7 +20,7 @@ from agents.workers.outlook_calendar.agent import outlook_agent, outlook_tools
 from core.state import AgentState
 
 # Initialize the LLM
-llm = ChatAnthropic(model="claude-3-opus-20240229")
+llm = ChatAnthropic(model=os.environ.get("MODEL_NAME"))
 
 # The supervisor node now simply invokes our compiled supervisor workflow
 def supervisor_node(state: AgentState):
