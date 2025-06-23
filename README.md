@@ -18,7 +18,7 @@
 
 ---
 
-## 🌟 What is Sidekick?
+##  What is Sidekick?
 
 **Sidekick** joins your Zoom meetings invisibly, listens in real-time, and **automatically executes** the action items discussed—all while you focus on what matters most. No more forgotten tasks, missed follow-ups, or scattered notes.
 
@@ -26,7 +26,7 @@
 > *"Add Nikhil as a reviewer on the auth PR"* → ✅ **GitHub reviewer assigned**  
 > *"Send the meeting notes to the engineering channel"* → ✅ **Slack message posted**
 
-### 🎭 The Problem We Solve
+###  The Problem We Solve
 
 In our years working across industry giants (Qualcomm, Samsara, Nutanix) and startups, we've seen the same pattern: **great meetings that lose their momentum the moment you leave the Zoom call**. Action items get forgotten, follow-ups slip through cracks, and progress stalls.
 
@@ -34,7 +34,7 @@ In our years working across industry giants (Qualcomm, Samsara, Nutanix) and sta
 
 ---
 
-## ✨ Features
+##  Features
 
 ### 🎤 **Real-Time Audio Intelligence**
 - **Sub-100ms latency** transcription using Groq's Whisper v3
@@ -160,8 +160,6 @@ The system automatically generates a visual representation of the agent workflow
 ## 👥 Made By
 
 <div align="center">
-
-### **The Sidekick Dream Team** 🚀
 
 <table>
 <tr>
