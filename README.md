@@ -12,8 +12,6 @@
 
 *"The world's first Zoom bot that can transcribe audio in real-time and turn conversations into action"*
 
-[Features](#-features) • [Quick Start](#-quick-start) • [Architecture](#-architecture) • [Integrations](#-integrations) • [Demo](#-demo)
-
 </div>
 
 ---
